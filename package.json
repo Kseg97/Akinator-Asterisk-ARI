@@ -1,0 +1,24 @@
+{
+  "name": "test_tts",
+  "version": "1.0.0",
+  "description": "A test for trying Google TTS Node API Package and convert the returning URL into a WAV/PCM file.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "TTS",
+    "Google",
+    "TTS",
+    "WAV"
+  ],
+  "author": "kseg",
+  "license": "ISC",
+  "dependencies": {
+    "dropbox-fs": "^0.3.1",
+    "google-tts-api": "0.0.4",
+    "node-lame": "^1.2.0",
+    "request": "^2.88.0",
+    "send": "^0.17.1"
+  }
+}
