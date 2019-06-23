@@ -124,7 +124,6 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
                     text2wav(sessionName, response.nextQuestion)
                       .then(() => {
                         play(channel, 'sound:http://localhost:8125/audio-files/'+sessionName+'.wav');
-                        // deleteFile(sessionName, 'wav');
                       })
                       .catch((err) => console.log(err));
                   }       
@@ -248,6 +247,7 @@ http.createServer(function (request, response) {
           response.writeHead(200, { 'Content-Type': contentType });
           response.end(content, 'utf-8');
       }
+      if (filePath != "./audio-files/start.wav") fs.unlinkSync(filePath);
   });
 
 }).listen(8125);
@@ -255,8 +255,9 @@ console.log('Server running at http://127.0.0.1:8125/');
 
 var deleteFile = (fileName, ext) => {
   // As it is just a use-and-drop file mp3 file can be deleted.
-  fs.unlink('./audio-files/'+fileName+'.'+ext, (err) => {
-    if (err) throw err;
-    console.log('./audio-files/'+fileName+'.'+ext+' was deleted');
-  });
+  // fs.unlink('./audio-files/'+fileName+'.'+ext, (err) => {
+  //   if (err) throw err;
+  //   console.log('./audio-files/'+fileName+'.'+ext+' was deleted');
+  // })
+  fs.unlinkSync('./audio-files/'+fileName+'.'+ext);
 }
