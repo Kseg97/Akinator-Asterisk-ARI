@@ -1,1 +1,3 @@
 node_modules
+!audio-files/start.wav
+audio-files/*
