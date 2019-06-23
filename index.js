@@ -42,6 +42,9 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
         var session = '';
         var signature = '';
         var step = 0;
+        var sessionName = '';
+        var sessionAll = '';
+        var guessed = false;
         // Play instruction set of the game.
         // text2wav("start", "¡Hola, soy Aki!; para responder sí, oprime 1, para no, oprime 2, para no lo sé, oprime 3, para probablemente, oprime 4 y para probablemente no, oprime 5.")
         play(incoming, 'sound:http://localhost:8125/audio-files/start.wav');
@@ -51,11 +54,11 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
           // Response = {session, signature, question, answers}
           session = response.session;
           signature = response.signature;
-
+          sessionName = signature+"-"+session+step;
           console.log(JSON.stringify(response));
-          text2wav("file", response.question)
+          text2wav(sessionName, response.question)
             .then(() => {
-              play(incoming, 'sound:http://localhost:8125/audio-files/file.wav'); 
+              play(incoming, 'sound:http://localhost:8125/audio-files/'+sessionName+'.wav'); 
             })
             .catch((err) => console.log(err));
         })
@@ -85,20 +88,23 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
 
               aki.step(region, session, signature, answer, step)
                 .then((response) => {
-                  //Response = {nextQuestion,progress, answers,currentStep,nextStep}               
-                  
-                  console.log(JSON.stringify(response.nextQuestion));
+                  //Response = {nextQuestion,progress, answers,currentStep,nextStep}
+                  sessionAll = signature+"-*";               
+                  sessionName = signature+"-"+session+step;
+                  // console.log(JSON.stringify(response.nextQuestion));
 
-                  if(response.progress >= 85) {
+                  if(response.progress >= 85 && !guessed) {
                     aki.win(region, session, signature, parseInt(step)+1)
                       .then((response) => {
                         const firstGuess = response.answers[0].name;
 
-                        console.log(firstGuess);
+                        // console.log(firstGuess);
+                        // console.dir(response);
                         // console.log(JSON.stringify(response));
-                        text2wav("file", "Tu personaje es "+firstGuess)
+                        text2wav(sessionName, "Tu personaje es "+firstGuess)
                         .then(() => {
-                          play(incoming, 'sound:http://localhost:8125/audio-files/file.wav'); 
+                          play(incoming, 'sound:http://localhost:8125/audio-files/'+sessionName+'.wav'); 
+                          guessed = true;
                         })
                         .catch((err) => console.log(err));
                         // TODO: Handle win DTMF.
@@ -106,15 +112,19 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
                       .catch((err) => {
                         console.log(JSON.stringify(err));
                         play(channel, 'sound:vm-goodbye', function (err) {
-                          channel.hangup(function (err) {
-                            process.exit(0);
-                          });
+                          channel.hangup();
                         });
                       })
+                  } else if (guessed && digit == 1) {
+                    play(channel, 'sound:vm-goodbye', function (err) {
+                      channel.hangup();
+                      // deleteFile(sessionAll, '');
+                    });
                   } else {
-                    text2wav("file", response.nextQuestion)
+                    text2wav(sessionName, response.nextQuestion)
                       .then(() => {
-                        play(channel, 'sound:http://localhost:8125/audio-files/file.wav'); 
+                        play(channel, 'sound:http://localhost:8125/audio-files/'+sessionName+'.wav');
+                        // deleteFile(sessionName, 'wav');
                       })
                       .catch((err) => console.log(err));
                   }       
@@ -130,12 +140,12 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
                 })
             } else if (digit == "#") {
               play(channel, 'sound:vm-goodbye', function (err) {
-                channel.hangup(function (err) {
-                  process.exit(0);
-                });
+                channel.hangup();
+                // deleteFile(sessionAll, '');
               });
             } else { 
               // TODO: Add right key audio prompt.
+              // Type a number between 1 and 5 or # to exit.
               play(channel, 'sound:tt-monkeys');              
             }
           });
@@ -149,7 +159,6 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
         var playback = ari.Playback();
         playback.once('PlaybackFinished',
           function (event, instance) {
-
             if (callback) {
               callback(null);
             }
@@ -164,7 +173,7 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
   // TODO: Implement hashes or audio identifiers for multiple users
   const text2wav = (fileName, text) => {
     return new Promise((resolve, reject) => {
-      googleTTS(text, 'es', 1)   // speed normal = 1 (default), slow = 0.24
+      googleTTS(text, region, 1)   // speed normal = 1 (default), slow = 0.24
         .then(function (url) {
             // console.log(url); // https://translate.google.com/translate_tts?...
 
@@ -193,9 +202,8 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
                               downsampledData[i] = highlySampledData[i*3];
                             }                      
                             let output = wav.encode([downsampledData], { sampleRate: 8000, float: false, bitDepth: 16 });
-                            
+                            deleteFile(fileName, 'mp3');
                             fs.writeFileSync('./audio-files/'+fileName+'.wav', output);
-                            console.log("File name: "+fileName);
                             resolve();
                         })
                         .catch(error => {
@@ -244,3 +252,11 @@ http.createServer(function (request, response) {
 
 }).listen(8125);
 console.log('Server running at http://127.0.0.1:8125/');
+
+var deleteFile = (fileName, ext) => {
+  // As it is just a use-and-drop file mp3 file can be deleted.
+  fs.unlink('./audio-files/'+fileName+'.'+ext, (err) => {
+    if (err) throw err;
+    console.log('./audio-files/'+fileName+'.'+ext+' was deleted');
+  });
+}
