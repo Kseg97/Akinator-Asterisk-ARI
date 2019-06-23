@@ -7,40 +7,44 @@
 
 'use strict';
 
-var client = require('ari-client'); // Install npm ari-client
-var util = require('util');
-const aki = require('aki-api'); // Install npm aki-api
-const region = 'es';
-
-// --TTS
-var googleTTS = require('google-tts-api'); // Install npm google-tts-api
-const http = require('http');
+// Import required modules.
 const fs = require('fs');
-const Lame = require("node-lame").Lame; // Install npm node-lame AND $ sudo apt-get install lame
+var util = require('util');
 var path = require('path');
-let wav = require('node-wav'); // Install node-wave npm
+const http = require('http');                  // Install HTTP module for general purpose requests and instantiation.
+let wav = require('node-wav');                 // Install node-wave npm.
+const aki = require('aki-api');                // Install npm aki-api.
+var client = require('ari-client');            // Install npm ari-client.
+const Lame = require("node-lame").Lame;        // Install npm node-lame AND $ sudo apt-get install lame.
+var googleTTS = require('google-tts-api');     // Install npm google-tts-api.
 
-const dir = './audio-files';
+// Set required constants.
+const region = 'es';                           // Set Google TTS and Aki API locale.
+const dir = './audio-files';                   // Set root directory for audio files.
+const asteriskHost = 'http://localhost:8088';  // Set Asterisk host URI.
+const asteriskUser = 'asterisk';               // Set Asterisk ARI user.
+const asteriskPassword = 'asterisk';           // Set Asterisk ARI password.
 
 if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
 }
-// TTS--
 
-
-client.connect('http://localhost:8088', 'asterisk', 'asterisk',
+client.connect(asteriskHost, asteriskUser, asteriskPassword,
   function (err, ari) {
 
     if (err) {
-      throw err; // program will crash if it fails to connect
+      throw err; // App will crash if it fails to connect.
     }
 
-    // Use once to start the application
+    // Use once to start the application.
     ari.on('StasisStart',
       function (event, incoming) {
         var session = '';
         var signature = '';
         var step = 0;
+        // Play instruction set of the game.
+        // text2wav("start", "¡Hola, soy Aki!; para responder sí, oprime 1, para no, oprime 2, para no lo sé, oprime 3, para probablemente, oprime 4 y para probablemente no, oprime 5.")
+        play(incoming, 'sound:http://localhost:8125/audio-files/start.wav');
         // Connect to Akinator API and Start
         aki.start(region)
         .then((response) => {
@@ -49,28 +53,33 @@ client.connect('http://localhost:8088', 'asterisk', 'asterisk',
           signature = response.signature;
 
           console.log(JSON.stringify(response));
-          text2wav(response.question)
+          text2wav("file", response.question)
             .then(() => {
-              play(incoming, 'sound:http://localhost:8125/audio-files/file.wav'); //https://github.com/pbxware/asterisk-sounds/raw/master/tt-monkeys.wav');//
+              play(incoming, 'sound:http://localhost:8125/audio-files/file.wav'); 
             })
             .catch((err) => console.log(err));
         })
         .catch((err) => {
-          //TODO: Hangup
           console.log(JSON.stringify(err));
+          play(channel, 'sound:vm-goodbye', function (err) { 
+            channel.hangup(function (err) {
+              process.exit(0);
+            });
+          });
         })
 
-        // Handle DTMF events
+        // Handle DTMF events.
         incoming.on('ChannelDtmfReceived',
           function (event, channel) {
-            const ans = ['1','3','2','4','6'];
+            const ans = ['1','2','3','4','5'];
             // YES, NO, DONT_KNOW, PROB_YES, PROB_NO
           
             var digit = event.digit;
-            //1:0,3:1,2:2 ; 4:3,6:4 <--dial vs answer order
+            console.log("Digit: " + digit);
 
-            // If an answer is valid, send to akinator and step up
+            // If an answer is valid, send to akinator and step up.
             if(ans.includes(digit)) {
+              console.log("Answer: " + ans[digit]);
               const answer = ans.indexOf(digit);
               console.log(answer);
 
@@ -78,51 +87,56 @@ client.connect('http://localhost:8088', 'asterisk', 'asterisk',
                 .then((response) => {
                   //Response = {nextQuestion,progress, answers,currentStep,nextStep}               
                   
-                  console.log(JSON.stringify(response));
+                  console.log(JSON.stringify(response.nextQuestion));
 
-                  if(response.progress >= 95) {
-                    //TODO: manage win
-                    aki.win(region, session, signature, step)
+                  if(response.progress >= 85) {
+                    aki.win(region, session, signature, parseInt(step)+1)
                       .then((response) => {
                         const firstGuess = response.answers[0].name;
 
-                        //console.log(firstGuess);
-                        console.log(JSON.stringify(response));
-                        //TODO: play final accertion question via TTS with Guests
-                        play(channel, 'sound:tt-monkeys'); //
+                        console.log(firstGuess);
+                        // console.log(JSON.stringify(response));
+                        text2wav("file", "Tu personaje es "+firstGuess)
+                        .then(() => {
+                          play(incoming, 'sound:http://localhost:8125/audio-files/file.wav'); 
+                        })
+                        .catch((err) => console.log(err));
+                        // TODO: Handle win DTMF.
                       })
                       .catch((err) => {
-                        //TODO: Hangup
                         console.log(JSON.stringify(err));
+                        play(channel, 'sound:vm-goodbye', function (err) {
+                          channel.hangup(function (err) {
+                            process.exit(0);
+                          });
+                        });
                       })
                   } else {
-                    text2wav(response.nextQuestion)
+                    text2wav("file", response.nextQuestion)
                       .then(() => {
-                        play(channel, 'sound:http://localhost:8125/audio-files/file.wav'); //https://github.com/pbxware/asterisk-sounds/raw/master/tt-monkeys.wav');//
+                        play(channel, 'sound:http://localhost:8125/audio-files/file.wav'); 
                       })
                       .catch((err) => console.log(err));
                   }       
                   step = response.nextStep;   
                 })
                 .catch((err) => {
-                  //TODO: Hangup
                   console.log(JSON.stringify(err));
-                })
-            }
-
-            switch (digit) {       
-              case '#':
-                play(channel, 'sound:vm-goodbye', function (err) {
-                  channel.hangup(function (err) {
-                    process.exit(0);
+                  play(channel, 'sound:vm-goodbye', function (err) {
+                    channel.hangup(function (err) {
+                      process.exit(0);
+                    });
                   });
+                })
+            } else if (digit == "#") {
+              play(channel, 'sound:vm-goodbye', function (err) {
+                channel.hangup(function (err) {
+                  process.exit(0);
                 });
-                break;
-              case '*':
-                play(channel, 'sound:tt-monkeys');
-                break;
-              // default:
-              //   play(channel, util.format('sound:digits/%s', digit));
+              });
+            } else { 
+              // TODO: Add right key audio prompt.
+              play(channel, 'sound:tt-monkeys');              
             }
           });
 
@@ -143,33 +157,33 @@ client.connect('http://localhost:8088', 'asterisk', 'asterisk',
         channel.play({media: sound}, playback, function (err, playback) {});
       }
 
-    // can also use ari.start(['app-name'...]) to start multiple applications
+    // Can also use ari.start(['app-name'...]) to start multiple applications.
     ari.start('example');
   });
 
-  // TODO: implement hashes or audio identifiers for multiple users
-  const text2wav = (text) => {
+  // TODO: Implement hashes or audio identifiers for multiple users
+  const text2wav = (fileName, text) => {
     return new Promise((resolve, reject) => {
       googleTTS(text, 'es', 1)   // speed normal = 1 (default), slow = 0.24
         .then(function (url) {
-            console.log(url); // https://translate.google.com/translate_tts?...
+            // console.log(url); // https://translate.google.com/translate_tts?...
 
-            const file = fs.createWriteStream("./audio-files/file.mp3");
+            const file = fs.createWriteStream("./audio-files/"+fileName+".mp3");
             http.get(url.replace('https', 'http'), function (response) {
                 response.pipe(file).on('finish', function () {
 
                     console.log('File saved!');
 
                     const decoder = new Lame({
-                        output: "./audio-files/file.wav"
-                    }).setFile("./audio-files/file.mp3");
+                        output: "./audio-files/"+fileName+".wav"
+                    }).setFile("./audio-files/"+fileName+".mp3");
 
                     decoder
                         .decode()
                         .then(() => {
                             console.log('File converted!');
                             // Conversion from 24kHz to 8KHz
-                            let buffer = fs.readFileSync('./audio-files/file.wav');
+                            let buffer = fs.readFileSync('./audio-files/'+fileName+'.wav');
                             let result = wav.decode(buffer);
                             // At 24.000 sample rate
                             var highlySampledData = Object.assign(result.channelData[0]);
@@ -180,7 +194,8 @@ client.connect('http://localhost:8088', 'asterisk', 'asterisk',
                             }                      
                             let output = wav.encode([downsampledData], { sampleRate: 8000, float: false, bitDepth: 16 });
                             
-                            fs.writeFileSync('./audio-files/file.wav', output);
+                            fs.writeFileSync('./audio-files/'+fileName+'.wav', output);
+                            console.log("File name: "+fileName);
                             resolve();
                         })
                         .catch(error => {
@@ -198,7 +213,7 @@ client.connect('http://localhost:8088', 'asterisk', 'asterisk',
   }
 
 
-//To access WAV as URL (HTTP) at http://localhost:8125/audio-files/file.wav
+// To access WAV as URL (HTTP) at http://localhost:8125/audio-files/file.wav
 http.createServer(function (request, response) {
   console.log('request starting...');
 
