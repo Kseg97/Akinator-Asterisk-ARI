@@ -48,7 +48,7 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
       // Play instruction set of the game.
       // text2wav("start", "¡Hola, soy Astrid!; para responder sí, oprime 1, para no, oprime 2, para no lo sé, oprime 3, para probablemente, oprime 4 y para probablemente no, oprime 5, para salir, marca numeral.");
       // text2wav("win", "¡He adivinado tu personaje!; para volver a jugar, marca 1, para salir del juego, marca numeral.");
-      text2wav("win", "¡He adivinado tu personaje!");
+      // text2wav("win", "¡He adivinado tu personaje!");
       // text2wav("bye", "¡Adiós!");
       // text2wav("wrong", "Debes pulsar una tecla entre uno y cinco o numeral. Vuelve a intentarlo.");
       play(incoming, 'sound:http://localhost:8125/audio-files/start.wav');
