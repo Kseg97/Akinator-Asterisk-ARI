@@ -1,3 +1,5 @@
 node_modules
 !audio-files/start.wav
+!audio-files/win.wav
+!audio-files/bye.wav
 audio-files/*
