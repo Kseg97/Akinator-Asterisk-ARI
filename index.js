@@ -42,9 +42,9 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
       var signature = '';
       var step = 0;
       var sessionName = '';
-      var sessionAll = '';
+      // var sessionAll = '';
       var guessed = false;
-      var replay = false;
+      // var replay = false;
       // Play instruction set of the game.
       // text2wav("start", "¡Hola, soy Astrid!; para responder sí, oprime 1, para no, oprime 2, para no lo sé, oprime 3, para probablemente, oprime 4 y para probablemente no, oprime 5, para salir, marca numeral.");
       // text2wav("win", "¡He adivinado tu personaje!; para volver a jugar, marca 1, para salir del juego, marca numeral.");
@@ -89,7 +89,7 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
             aki.step(region, session, signature, answer, step)
               .then((response) => {
                 //Response = {nextQuestion,progress, answers,currentStep,nextStep}
-                sessionAll = signature + "-*";
+                // sessionAll = signature + "-*";
                 sessionName = signature + "-" + session + step;
                 // console.log(JSON.stringify(response.nextQuestion));
 
@@ -120,7 +120,7 @@ client.connect(asteriskHost, asteriskUser, asteriskPassword,
                   play(channel, 'sound:http://localhost:8125/audio-files/bye.wav', function (err) {
                     channel.hangup();
                   });
-                  replay = true;
+                  // replay = true;
                 } else {
                   text2wav(sessionName, response.nextQuestion)
                     .then(() => {
