@@ -27,7 +27,7 @@
   "dependencies": {
     "aki-api": "^3.0.0",
     "ari-client": "^2.1.0",
-    "google-tts-api": "0.0.4",
+    "google-tts-api": "2.0.2",
     "node-lame": "^1.2.0",
     "node-wav": "0.0.2"
   }
